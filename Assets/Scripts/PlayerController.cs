@@ -7,92 +7,114 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-    //Handling
-    //public float rotationSpeed = 450f;
+    [Header("Player Handling")]
     public float movementSpeed = 5f;
-    //public float runSpeed = 8f;
-    public GameObject bulletSpawnPoint;
-    public float waitTime;
+    public float dodgeForce = 7f;
+    public bool isDodging;
+    public float fracJourney;
+
+    [Header("Required Objects")]
     public GameObject playerObject;
-    public GameObject bullet;
+    [SerializeField] private GunController _gunController;
+    [SerializeField] private Animator _animator;
 
     //System
-    private Quaternion targetRotation;
-
-    //Components
-    private CharacterController _controller;
-    private Camera mainCam;
+        private Rigidbody _rb;
+    private Vector3 _moveInput;
+    private Vector3 _moveVelocity;
+    private Vector3 _startMarker;
+    private Vector3 _endMarker;
+    private Vector3 _lookPos;
+    private bool _isReload;
+    private float _startDodge;
 
 
     void Awake()
     {
-        _controller = GetComponent<CharacterController>();
-        mainCam = Camera.main;
+        _rb = GetComponent<Rigidbody>();
+        _startDodge = Time.time;
     }
     void Update()
     {
-        ControlMouse();
-        //ControlWASD();
-        /*
+        PlayerMaster();
+
         if (Input.GetMouseButtonDown(0))
         {
-            gun.Shoot();
+            _gunController.isFiring = true;
         }
-        else if(Input.GetMouseButton(0))
+
+        if (Input.GetMouseButtonUp(0))
         {
-            gun.ShootContinuous();
-        }*/
+            _gunController.isFiring = false;
+        }
+
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            if (_gunController.Reload())
+            {
+                _isReload = true;
+                Debug.Log("I'm reloading!");
+            }
+        }
+
+        if (_isReload)
+        {
+            _gunController.FinishReload();
+            _isReload = false;
+        }
     }
 
-    void ControlMouse()
+    void PlayerMaster()
     {
-        /*
-        Vector3 mousePos = Input.mousePosition;
-        mousePos = Camera.main.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, Camera.main.transform.position.y - transform.position.y));
-        targetRotation = Quaternion.LookRotation(mousePos - new Vector3(transform.position.x, 0f, transform.position.z));
-        transform.eulerAngles = Vector3.up * Mathf.MoveTowardsAngle(transform.eulerAngles.y, targetRotation.eulerAngles.y, rotationSpeed * Time.deltaTime);
-        */
-        Plane playerPlane = new Plane(Vector3.up, transform.position);
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        float hitDist = 0.0f;
+        Ray cameraRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+        RaycastHit hit;
 
-        if (playerPlane.Raycast(ray, out hitDist))
+        if (Physics.Raycast(cameraRay, out hit, 100))
         {
-            Vector3 targetPoint = ray.GetPoint(hitDist);
-            targetRotation = Quaternion.LookRotation(targetPoint - transform.position);
-            targetRotation.x = 0f;
-            targetRotation.z = 0f;
-            playerObject.transform.rotation = Quaternion.Slerp(playerObject.transform.rotation, targetRotation, 7f * Time.deltaTime);
+            _lookPos = hit.point;
         }
 
-        /*
-        Vector3 input = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
-        Vector3 movement = input;
-        movement *= (Mathf.Abs(input.x) == 1 && Mathf.Abs(input.z) == 1) ? 7f : 1f;
-        movement *= (Input.GetButton("Run")) ? runSpeed : walkSpeed;
-        movement += Vector3.up * -8;
+        Vector3 lookDir = _lookPos - transform.position;
+        lookDir.y = 0;
+        transform.LookAt(transform.position +  lookDir, Vector3.up);
 
-        _controller.Move((movement * Time.deltaTime).normalized);*/
-
-        if (Input.GetKey(KeyCode.W))
-            transform.Translate(Vector3.forward * movementSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.A))
-            transform.Translate(Vector3.left * movementSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.S))
-            transform.Translate(Vector3.back * movementSpeed * Time.deltaTime);
-        if (Input.GetKey(KeyCode.D))
-            transform.Translate(Vector3.right * movementSpeed * Time.deltaTime);
-
-        if (Input.GetMouseButton(0))
-        {
-            Shoot();
-        }
+        _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical")).normalized;
+        _moveVelocity = _moveInput * movementSpeed;
     }
 
-    void Shoot()
+    void FixedUpdate()
     {
-        Instantiate(bullet.transform, bulletSpawnPoint.transform.position, Quaternion.identity);
-        
+        _rb.velocity = _moveVelocity;
+        Dodge();
     }
 
+    void Dodge()
+    {
+        float distCovered = (Time.time - _startDodge) * movementSpeed;
+
+        if (!isDodging && Input.GetKey(KeyCode.Space))
+        {
+            isDodging = true;
+            fracJourney = 0;
+            _startMarker = transform.position;
+            //Add dodge animation here
+            //_animator.SetBool("isDodging", isDodging);
+            _endMarker = transform.position + _moveInput * dodgeForce;
+        }
+
+        if (isDodging)
+        {
+            //deltaTime is the amount of time between this frame and the previous frame
+            fracJourney = fracJourney + Time.deltaTime * dodgeForce;
+
+            if (fracJourney > 1)
+            {  //clamp fracJourney to 1
+                fracJourney = 1;
+                isDodging = false; //if he's at the end of the lerp, he's done dodging after this
+            }
+
+            //lerp the guy
+            transform.position = Vector3.Lerp(_startMarker, _endMarker, fracJourney);
+        }
+    }
 }
