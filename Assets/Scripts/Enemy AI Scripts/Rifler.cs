@@ -5,7 +5,8 @@ using UnityEngine;
 public class Rifler : MonoBehaviour
 {
     public float enemyHealth;
-
+    public float enemyDamage;
+    public float enemyScore;
 
     public float enemySpeed;
     public float enemyStoppingDistance;

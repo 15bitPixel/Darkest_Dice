@@ -5,6 +5,8 @@ using UnityEngine;
 public class Rusher : MonoBehaviour
 {
     public float enemyHealth;
+    public float enemyDamage;
+    public float enemyScore;
 
 
     public float enemySpeed;

@@ -5,6 +5,8 @@ using UnityEngine;
 public class basicSoldier : MonoBehaviour
 {
     public float enemyHealth;
+    public float enemyDamage;
+    public float enemyScore;
 
 
     public float enemySpeed;
